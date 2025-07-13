@@ -1,0 +1,13 @@
+"There are 9 birds in the tree, the hunter shoots one, how many birds are left in the tree£ø","OpenAI API “Ï≥£: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+",gpt-3.5-turbo,False,2025-07-09 23:03:46.093297
+"There are 9 birds in the tree, the hunter shoots one, how many birds are left in the tree£ø",OpenAI API “Ï≥£: Error code: 502,gpt-3.5-turbo,False,2025-07-09 23:33:11.525512
+"There are 9 birds in the tree, the hunter shoots one, how many birds are left in the tree£ø",There would be 8 birds left in the tree.,gpt-3.5-turbo,False,2025-07-11 22:45:57.028087
+"There are 9 birds in the tree, the hunter shoots one, how many birds are left in the tree£ø",There would be 0 birds left in the tree because the sound of the gunshot would scare the other birds away.,gpt-3.5-turbo,False,2025-07-11 23:16:23.504317
