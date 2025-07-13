@@ -197,41 +197,46 @@ class RheumatologyEHRSystem:
             "treatment_plan": ""
         }
         
-        # 改进的文本解析逻辑
+        # 更智能的文本解析逻辑
         lines = record_text.split('\n')
         current_section = None
+        current_content = []
         
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-                
-            # 识别章节标题（更精确的匹配）
-            if line.startswith("主诉："):
-                current_section = "chief_complaint"
-                continue
-            elif line.startswith("现病史："):
-                current_section = "present_illness"
-                continue
-            elif line.startswith("既往史："):
-                current_section = "past_history"
-                continue
-            elif line.startswith("体格检查："):
-                current_section = "physical_examination"
-                continue
-            elif line.startswith("辅助检查："):
-                current_section = "auxiliary_examination"
-                continue
-            elif line.startswith("诊断："):
-                current_section = "diagnosis"
-                continue
-            elif line.startswith("治疗方案："):
-                current_section = "treatment_plan"
-                continue
             
-            # 如果当前有活跃的章节，添加内容
-            if current_section and line and not line.startswith("["):
-                sections[current_section] += line + "\n"
+            # 检查是否是新的章节标题
+            if any(line.startswith(prefix) for prefix in ["主诉：", "现病史：", "既往史：", "体格检查：", "辅助检查：", "诊断：", "治疗方案："]):
+                # 保存之前章节的内容
+                if current_section and current_content:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                    current_content = []
+                
+                # 设置新的章节
+                if line.startswith("主诉："):
+                    current_section = "chief_complaint"
+                elif line.startswith("现病史："):
+                    current_section = "present_illness"
+                elif line.startswith("既往史："):
+                    current_section = "past_history"
+                elif line.startswith("体格检查："):
+                    current_section = "physical_examination"
+                elif line.startswith("辅助检查："):
+                    current_section = "auxiliary_examination"
+                elif line.startswith("诊断："):
+                    current_section = "diagnosis"
+                elif line.startswith("治疗方案："):
+                    current_section = "treatment_plan"
+            
+            # 如果不是章节标题，且当前有活跃章节，则添加内容
+            elif current_section and line and not line.startswith("[") and not line.startswith("请"):
+                current_content.append(line)
+        
+        # 保存最后一个章节的内容
+        if current_section and current_content:
+            sections[current_section] = '\n'.join(current_content).strip()
         
         # 确保所有章节都有内容，如果没有则设置为"无"
         for key in sections:
@@ -407,13 +412,16 @@ def display_medical_record(record_data):
     
     # 可展开的详细信息
     with st.expander("🔍 查看详细信息"):
-        tab1, tab2 = st.tabs(["📊 结构化数据", "🔍 分析结果"])
+        tab1, tab2, tab3 = st.tabs(["📊 结构化数据", "🔍 分析结果", "📝 原始响应"])
         
         with tab1:
             st.json(record)
         
         with tab2:
             st.write(record_data.get("analysis", "无分析结果"))
+        
+        with tab3:
+            st.text(record_data.get("raw_response", "无原始响应"))
 
 if __name__ == "__main__":
     main() 
