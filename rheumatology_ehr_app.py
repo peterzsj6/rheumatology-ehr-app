@@ -112,14 +112,28 @@ class RheumatologyPrompts:
         
         分析结果：{analysis_result}
         
-        请生成包含以下部分的完整病历：
-        1. 主诉
-        2. 现病史
-        3. 既往史
-        4. 体格检查
-        5. 辅助检查建议
-        6. 诊断
-        7. 治疗方案
+        请严格按照以下格式生成电子病历，如果对话中未提到相关内容，请对应输出"无"：
+        
+        主诉：
+        [根据对话内容提取患者主要症状，如关节疼痛、皮疹等。如未提到则输出"无"]
+        
+        现病史：
+        [根据对话内容描述症状发展过程、持续时间等。如未提到则输出"无"]
+        
+        既往史：
+        [根据对话内容提取既往病史、用药史等。如未提到则输出"无"]
+        
+        体格检查：
+        [根据对话内容描述关节检查、皮肤黏膜、心肺等检查发现。如未提到则输出"无"]
+        
+        辅助检查：
+        [根据对话内容建议实验室检查、影像学检查等。如未提到则输出"无"]
+        
+        诊断：
+        [根据对话内容给出初步诊断、鉴别诊断。如未提到则输出"无"]
+        
+        治疗方案：
+        [根据对话内容制定治疗方案。如未提到则输出"无"]
         """
 
 class RheumatologyEHRSystem:
@@ -183,7 +197,7 @@ class RheumatologyEHRSystem:
             "treatment_plan": ""
         }
         
-        # 简单的文本解析逻辑
+        # 改进的文本解析逻辑
         lines = record_text.split('\n')
         current_section = None
         
@@ -192,14 +206,37 @@ class RheumatologyEHRSystem:
             if not line:
                 continue
                 
-            # 识别章节标题
-            if any(keyword in line for keyword in ["主诉", "现病史", "既往史", "体格检查", "辅助检查", "诊断", "治疗"]):
-                for key in sections.keys():
-                    if any(keyword in line for keyword in ["主诉", "现病史", "既往史", "体格检查", "辅助检查", "诊断", "治疗"]):
-                        current_section = key
-                        break
-            elif current_section:
+            # 识别章节标题（更精确的匹配）
+            if line.startswith("主诉："):
+                current_section = "chief_complaint"
+                continue
+            elif line.startswith("现病史："):
+                current_section = "present_illness"
+                continue
+            elif line.startswith("既往史："):
+                current_section = "past_history"
+                continue
+            elif line.startswith("体格检查："):
+                current_section = "physical_examination"
+                continue
+            elif line.startswith("辅助检查："):
+                current_section = "auxiliary_examination"
+                continue
+            elif line.startswith("诊断："):
+                current_section = "diagnosis"
+                continue
+            elif line.startswith("治疗方案："):
+                current_section = "treatment_plan"
+                continue
+            
+            # 如果当前有活跃的章节，添加内容
+            if current_section and line and not line.startswith("["):
                 sections[current_section] += line + "\n"
+        
+        # 确保所有章节都有内容，如果没有则设置为"无"
+        for key in sections:
+            if not sections[key].strip():
+                sections[key] = "无"
         
         return sections
 
