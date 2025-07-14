@@ -6,7 +6,7 @@ import csv
 from csv import DictWriter
 from datetime import datetime
 
-OPENAI_API_KEY="sk-CWTh6ygUZyDPjlVJB4C804F64dF140C89e984c848a4e3f7b"
+OPENAI_API_KEY="YOURAPIKEY"
 openai.api_base = "https://vip.apiyi.com/v1"
 openai.api_key = OPENAI_API_KEY
 
