@@ -30,24 +30,81 @@ pip install -r requirements.txt
 ```
 
 ### 3. 配置API密钥
+
+#### 本地开发
+```bash
+# Linux/Mac
+export OPENAI_API_KEY="your-api-key-here"
+export OPENAI_BASE_URL="https://vip.apiyi.com/v1"
+
+# Windows (PowerShell)
+$env:OPENAI_API_KEY="your-api-key-here"
+$env:OPENAI_BASE_URL="https://vip.apiyi.com/v1"
+
+# Windows (CMD)
+set OPENAI_API_KEY=your-api-key-here
+set OPENAI_BASE_URL=https://vip.apiyi.com/v1
+```
+
+#### Streamlit Cloud部署
+1. 将代码推送到GitHub
+2. 在[Streamlit Cloud](https://streamlit.io/cloud)创建新应用
+3. 在应用设置中配置Secrets：
+```
+OPENAI_API_KEY = "your-api-key-here"
+OPENAI_BASE_URL = "https://vip.apiyi.com/v1"
+```
+
+#### 手动输入
 在运行应用时，在侧边栏输入你的OpenAI API密钥。
 
 ## 运行应用
 
-### 方法1: 直接运行
+### 本地运行
 ```bash
+# 直接运行
 streamlit run rheumatology_ehr_app.py
-```
 
-### 方法2: 指定端口运行
-```bash
+# 指定端口运行
 streamlit run rheumatology_ehr_app.py --server.port 8501
-```
 
-### 方法3: 在后台运行
-```bash
+# 后台运行
 nohup streamlit run rheumatology_ehr_app.py > app.log 2>&1 &
 ```
+
+### 云端部署
+
+#### Streamlit Cloud部署
+1. **推送代码到GitHub**
+   ```bash
+   git add .
+   git commit -m "Add Streamlit app"
+   git push origin main
+   ```
+
+2. **在Streamlit Cloud创建应用**
+   - 访问 [Streamlit Cloud](https://streamlit.io/cloud)
+   - 点击 "New app"
+   - 选择你的GitHub仓库
+   - 设置主文件路径为 `rheumatology_ehr_app.py`
+
+3. **配置Secrets**
+   - 在应用设置页面点击 "Secrets"
+   - 添加以下配置：
+   ```
+   OPENAI_API_KEY = "your-api-key-here"
+   OPENAI_BASE_URL = "https://vip.apiyi.com/v1"
+   ```
+
+4. **部署应用**
+   - 点击 "Deploy" 按钮
+   - 等待部署完成
+   - 访问生成的URL
+
+#### 其他平台部署
+- **Heroku**: 使用 `requirements.txt` 和 `Procfile`
+- **Docker**: 使用提供的 `Dockerfile`
+- **VPS**: 直接运行 `streamlit run` 命令
 
 ## 使用说明
 

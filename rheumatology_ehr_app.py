@@ -4,6 +4,7 @@ import openai
 from typing import Dict, Any
 import json
 from datetime import datetime
+import os
 
 # 页面配置
 st.set_page_config(
@@ -247,6 +248,20 @@ class RheumatologyEHRSystem:
         
         return sections
 
+def get_api_config():
+    """获取API配置，优先使用Streamlit Secrets，然后环境变量，最后默认值"""
+    # 优先使用Streamlit Secrets（云端部署）
+    if "OPENAI_API_KEY" in st.secrets:
+        api_key = st.secrets["OPENAI_API_KEY"]
+        base_url = st.secrets.get("OPENAI_BASE_URL", "https://vip.apiyi.com/v1")
+        return api_key, base_url
+    
+    # 其次使用环境变量（本地开发）
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    base_url = os.getenv("OPENAI_BASE_URL", "https://vip.apiyi.com/v1")
+    
+    return api_key, base_url
+
 def main():
     # 主标题
     st.markdown('<h1 class="main-header">🏥 风湿免疫科电子病历生成系统</h1>', unsafe_allow_html=True)
@@ -255,16 +270,21 @@ def main():
     with st.sidebar:
         st.header("⚙️ 系统配置")
         
+        # 获取API配置
+        default_api_key, default_base_url = get_api_config()
+        
         # API配置
         api_key = st.text_input(
             "OpenAI API Key:",
-            value="sk-CWTh6ygUZyDPjlVJB4C804F64dF140C89e984c848a4e3f7b",
-            type="password"
+            value=default_api_key,
+            type="password",
+            help="请输入您的OpenAI API密钥。如果已配置Secrets或环境变量，将自动填充。"
         )
         
         base_url = st.text_input(
             "API Base URL:",
-            value="https://vip.apiyi.com/v1"
+            value=default_base_url,
+            help="API基础URL。如果已配置Secrets或环境变量，将自动填充。"
         )
         
         st.markdown("---")
