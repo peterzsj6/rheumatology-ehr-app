@@ -4,6 +4,7 @@ import os
 import warnings
 from typing import Optional
 from audio_converter import create_audio_converter
+from audio_fixer import create_audio_fixer
 
 class StreamlitSpeechService:
     """专门为 Streamlit 部署优化的语音识别服务"""
@@ -23,8 +24,9 @@ class StreamlitSpeechService:
         self.recognizer.dynamic_energy_threshold = True
         self.recognizer.pause_threshold = 0.8
         
-        # 初始化音频转换器
+        # 初始化音频转换器和修复器
         self.audio_converter = create_audio_converter()
+        self.audio_fixer = create_audio_fixer()
     
     def transcribe_audio_file(self, audio_file_path: str, language: str = "zh-CN") -> str:
         """
@@ -38,25 +40,62 @@ class StreamlitSpeechService:
             转换后的文字
         """
         try:
-            # 首先尝试转换音频格式
-            try:
-                converted_file = self.audio_converter.convert_to_wav(audio_file_path)
-                use_file = converted_file
-            except Exception as e:
-                # 如果转换失败，使用原文件
-                use_file = audio_file_path
-                warnings.warn(f"音频格式转换失败，使用原文件: {str(e)}")
+            # 检查文件是否存在
+            if not os.path.exists(audio_file_path):
+                return "错误：音频文件不存在"
             
-            with sr.AudioFile(use_file) as source:
-                # 调整音频参数
-                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                audio = self.recognizer.record(source)
-                return self._recognize_speech(audio, language)
+            # 检查文件大小
+            file_size = os.path.getsize(audio_file_path)
+            if file_size == 0:
+                return "错误：音频文件为空"
+            
+            # 首先尝试使用音频修复器
+            converted_file = None
+            try:
+                converted_file = self.audio_fixer.fix_audio_for_google_speech(audio_file_path)
+                use_file = converted_file
+                
+                # 验证转换后的文件
+                if not os.path.exists(use_file) or os.path.getsize(use_file) == 0:
+                    raise Exception("音频修复后文件无效")
+                    
+            except Exception as e:
+                # 如果修复失败，尝试使用音频转换器
+                try:
+                    converted_file = self.audio_converter.convert_to_wav(audio_file_path)
+                    use_file = converted_file
+                    
+                    # 验证转换后的文件
+                    if not os.path.exists(use_file) or os.path.getsize(use_file) == 0:
+                        raise Exception("音频转换后文件无效")
+                        
+                except Exception as e2:
+                    # 如果转换也失败，尝试使用原文件
+                    use_file = audio_file_path
+                    warnings.warn(f"音频格式转换失败，尝试使用原文件: {str(e2)}")
+            
+            # 尝试读取音频文件
+            try:
+                with sr.AudioFile(use_file) as source:
+                    # 调整音频参数
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                    audio = self.recognizer.record(source)
+                    return self._recognize_speech(audio, language)
+            except Exception as e:
+                # 如果读取失败，提供详细的错误信息
+                error_msg = str(e)
+                if "could not be read as PCM WAV" in error_msg:
+                    return "音频格式不兼容：请确保音频文件为WAV、MP3、WebM等格式，或尝试重新录音"
+                elif "file is corrupted" in error_msg:
+                    return "音频文件损坏：请重新录音或使用其他音频文件"
+                else:
+                    return f"音频读取失败: {error_msg}"
+                    
         except Exception as e:
             return f"语音识别失败: {str(e)}"
         finally:
             # 清理转换后的临时文件
-            if 'converted_file' in locals() and converted_file != audio_file_path:
+            if converted_file and converted_file != audio_file_path:
                 try:
                     os.unlink(converted_file)
                 except:

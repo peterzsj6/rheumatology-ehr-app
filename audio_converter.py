@@ -13,7 +13,7 @@ class AudioConverter:
     
     def convert_to_wav(self, input_file: str, output_file: Optional[str] = None) -> str:
         """
-        将音频文件转换为WAV格式
+        将音频文件转换为Google Speech Recognition兼容的WAV格式
         
         Args:
             input_file: 输入文件路径
@@ -28,12 +28,13 @@ class AudioConverter:
                 output_file = temp_file.name
         
         try:
-            # 尝试使用ffmpeg进行转换
+            # 使用ffmpeg进行转换，确保Google Speech Recognition兼容
             cmd = [
                 'ffmpeg', '-i', input_file,
                 '-acodec', 'pcm_s16le',  # 16位PCM编码
                 '-ar', '16000',          # 16kHz采样率
                 '-ac', '1',              # 单声道
+                '-f', 'wav',             # 强制WAV格式
                 '-y',                    # 覆盖输出文件
                 output_file
             ]
@@ -41,7 +42,24 @@ class AudioConverter:
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
-                raise Exception(f"FFmpeg转换失败: {result.stderr}")
+                # 如果ffmpeg失败，尝试其他参数
+                cmd_alt = [
+                    'ffmpeg', '-i', input_file,
+                    '-acodec', 'pcm_s16le',
+                    '-ar', '16000',
+                    '-ac', '1',
+                    '-y',
+                    output_file
+                ]
+                
+                result = subprocess.run(cmd_alt, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    raise Exception(f"FFmpeg转换失败: {result.stderr}")
+            
+            # 验证生成的WAV文件
+            if not self.validate_wav_file(output_file):
+                raise Exception("生成的WAV文件格式无效")
             
             return output_file
             
