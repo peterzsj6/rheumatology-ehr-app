@@ -3,6 +3,7 @@ import tempfile
 import os
 import warnings
 from typing import Optional
+from audio_converter import create_audio_converter
 
 class StreamlitSpeechService:
     """专门为 Streamlit 部署优化的语音识别服务"""
@@ -21,6 +22,9 @@ class StreamlitSpeechService:
         self.recognizer.energy_threshold = 300
         self.recognizer.dynamic_energy_threshold = True
         self.recognizer.pause_threshold = 0.8
+        
+        # 初始化音频转换器
+        self.audio_converter = create_audio_converter()
     
     def transcribe_audio_file(self, audio_file_path: str, language: str = "zh-CN") -> str:
         """
@@ -34,13 +38,29 @@ class StreamlitSpeechService:
             转换后的文字
         """
         try:
-            with sr.AudioFile(audio_file_path) as source:
+            # 首先尝试转换音频格式
+            try:
+                converted_file = self.audio_converter.convert_to_wav(audio_file_path)
+                use_file = converted_file
+            except Exception as e:
+                # 如果转换失败，使用原文件
+                use_file = audio_file_path
+                warnings.warn(f"音频格式转换失败，使用原文件: {str(e)}")
+            
+            with sr.AudioFile(use_file) as source:
                 # 调整音频参数
                 self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 audio = self.recognizer.record(source)
                 return self._recognize_speech(audio, language)
         except Exception as e:
             return f"语音识别失败: {str(e)}"
+        finally:
+            # 清理转换后的临时文件
+            if 'converted_file' in locals() and converted_file != audio_file_path:
+                try:
+                    os.unlink(converted_file)
+                except:
+                    pass
     
     def transcribe_audio_data(self, audio_data: bytes, language: str = "zh-CN") -> str:
         """

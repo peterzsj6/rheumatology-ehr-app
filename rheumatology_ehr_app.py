@@ -11,6 +11,7 @@ import wave
 import threading
 import time
 from voice_input_component import voice_input_section
+from enhanced_voice_input import enhanced_voice_input_section
 
 # 页面配置
 st.set_page_config(
@@ -373,7 +374,19 @@ def main():
     st.markdown('<h2 class="section-header">📝 问诊记录输入</h2>', unsafe_allow_html=True)
     
     # 语音输入功能
-    voice_input_section()
+    st.markdown('<h3 class="section-header">🎤 语音输入功能</h3>', unsafe_allow_html=True)
+    
+    # 选择语音输入模式
+    input_mode = st.radio(
+        "选择语音输入模式：",
+        ["基础模式", "增强模式（推荐）"],
+        help="增强模式支持自动转换和更多音频格式"
+    )
+    
+    if input_mode == "基础模式":
+        voice_input_section()
+    else:
+        enhanced_voice_input_section()
     
     # 显示转换后的文字
     if hasattr(st.session_state, 'transcribed_text'):
