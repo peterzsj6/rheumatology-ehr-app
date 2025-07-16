@@ -14,7 +14,7 @@ from voice_input_component import voice_input_section
 from enhanced_voice_input import enhanced_voice_input_section
 from simple_voice_input import simple_voice_input_section
 from auto_voice_input import auto_voice_input_section
-from word_exporter import create_word_exporter
+from word_export_handler import create_word_export_handler
 
 # 页面配置
 st.set_page_config(
@@ -529,64 +529,25 @@ def display_medical_record(record_data):
     
     # 底部操作按钮
     st.markdown("---")
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📄 导出为Word", use_container_width=True):
-            try:
-                # 创建Word导出器
-                word_exporter = create_word_exporter()
-                
-                # 生成Word文档
-                doc_bytes = word_exporter.export_to_bytes(record)
-                
-                # 创建下载按钮
-                st.download_button(
-                    label="📥 下载Word文档",
-                    data=doc_bytes,
-                    file_name=f"风湿免疫科电子病历_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True
-                )
-                
-                st.success("Word文档已生成，请点击下载按钮保存文件！")
-                
-            except Exception as e:
-                st.error(f"Word导出失败: {str(e)}")
-                st.info("请确保已安装python-docx库：pip install python-docx")
+        # 创建Word导出处理器
+        word_handler = create_word_export_handler()
+        
+        # 直接显示下载按钮，避免页面重新加载
+        success, message = word_handler.handle_word_export(record)
+        if not success:
+            st.error(message)
     
     with col2:
         if st.button("📋 复制到剪贴板", use_container_width=True):
-            # 创建病历文本
-            record_text = f"""
-风湿免疫科电子病历
-
-主诉：{record.get('chief_complaint', '无')}
-
-现病史：{record.get('present_illness', '无')}
-
-既往史：{record.get('past_history', '无')}
-
-体格检查：{record.get('physical_examination', '无')}
-
-辅助检查：{record.get('auxiliary_examination', '无')}
-
-诊断：{record.get('diagnosis', '无')}
-
-治疗方案：{record.get('treatment_plan', '无')}
-
-生成时间：{datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}
-            """
-            
-            # 复制到剪贴板
-            try:
-                import pyperclip
-                pyperclip.copy(record_text)
-                st.success("病历内容已复制到剪贴板！")
-            except ImportError:
-                st.error("复制功能需要安装pyperclip库：pip install pyperclip")
-            except Exception as e:
-                st.error(f"复制失败: {str(e)}")
+            success, message = word_handler.handle_copy_to_clipboard(record)
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
     
     with col3:
         if st.button("🔄 重新生成", use_container_width=True):
