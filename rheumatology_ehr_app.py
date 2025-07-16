@@ -8,7 +8,6 @@ import os
 import speech_recognition as sr
 import tempfile
 import wave
-import pyaudio
 import threading
 import time
 from voice_input_component import voice_input_section
@@ -185,53 +184,8 @@ class RheumatologyPrompts:
         注意：请严格按照上述格式输出，不要添加其他内容，不要输出分析结果，只输出结构化的电子病历。诊断和治疗方案部分请尽可能详细和具体。
         """
 
-class VoiceRecorder:
-    def __init__(self):
-        self.recording = False
-        self.frames = []
-        self.audio = pyaudio.PyAudio()
-        self.stream = None
-        
-    def start_recording(self):
-        """开始录音"""
-        self.recording = True
-        self.frames = []
-        
-        def callback(in_data, frame_count, time_info, status):
-            if self.recording:
-                self.frames.append(in_data)
-            return (in_data, pyaudio.paContinue)
-        
-        self.stream = self.audio.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            stream_callback=callback
-        )
-        self.stream.start_stream()
-        
-    def stop_recording(self):
-        """停止录音"""
-        self.recording = False
-        if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-        
-    def save_audio(self, filename):
-        """保存录音文件"""
-        with wave.open(filename, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(44100)
-            wf.writeframes(b''.join(self.frames))
-    
-    def cleanup(self):
-        """清理资源"""
-        if self.stream:
-            self.stream.close()
-        self.audio.terminate()
+# VoiceRecorder class removed - not needed for Streamlit deployment
+# Browser handles recording via JavaScript
 
 class SpeechToText:
     def __init__(self):

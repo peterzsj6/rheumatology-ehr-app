@@ -1,6 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
-from speech_recognition_service import create_speech_recognition_service
+from streamlit_speech_service import create_streamlit_speech_service
 import tempfile
 import os
 
@@ -192,7 +192,7 @@ def voice_input_section():
             with st.spinner("正在转换语音..."):
                 try:
                     # 创建语音识别服务
-                    speech_service = create_speech_recognition_service(service_type=service_type)
+                    speech_service = create_streamlit_speech_service(service_type=service_type)
                     
                     # 转换音频文件
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
@@ -203,7 +203,10 @@ def voice_input_section():
                     transcribed_text = speech_service.transcribe_audio_file(temp_audio_path, language)
                     
                     # 清理临时文件
-                    os.unlink(temp_audio_path)
+                    try:
+                        os.unlink(temp_audio_path)
+                    except:
+                        pass
                     
                     # 保存结果
                     st.session_state.transcribed_text = transcribed_text

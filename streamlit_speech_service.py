@@ -1,23 +1,26 @@
 import speech_recognition as sr
 import tempfile
 import os
-import requests
-import json
-from typing import Optional
 import warnings
+from typing import Optional
 
-class SpeechRecognitionService:
-    def __init__(self, api_key: str = None, service_type: str = "google"):
+class StreamlitSpeechService:
+    """专门为 Streamlit 部署优化的语音识别服务"""
+    
+    def __init__(self, service_type: str = "google"):
         """
         初始化语音识别服务
         
         Args:
-            api_key: API密钥（如果需要）
             service_type: 服务类型 ("google", "azure", "baidu", "tencent")
         """
-        self.api_key = api_key
         self.service_type = service_type
         self.recognizer = sr.Recognizer()
+        
+        # 设置识别参数
+        self.recognizer.energy_threshold = 300
+        self.recognizer.dynamic_energy_threshold = True
+        self.recognizer.pause_threshold = 0.8
     
     def transcribe_audio_file(self, audio_file_path: str, language: str = "zh-CN") -> str:
         """
@@ -32,6 +35,8 @@ class SpeechRecognitionService:
         """
         try:
             with sr.AudioFile(audio_file_path) as source:
+                # 调整音频参数
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 audio = self.recognizer.record(source)
                 return self._recognize_speech(audio, language)
         except Exception as e:
@@ -46,7 +51,7 @@ class SpeechRecognitionService:
             language: 语言代码
             
         Returns:
-            转换后的文字
+            识别结果
         """
         try:
             # 保存临时文件
@@ -58,7 +63,10 @@ class SpeechRecognitionService:
             result = self.transcribe_audio_file(temp_file_path, language)
             
             # 清理临时文件
-            os.unlink(temp_file_path)
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
             
             return result
         except Exception as e:
@@ -92,18 +100,22 @@ class SpeechRecognitionService:
     def _recognize_google(self, audio, language: str) -> str:
         """使用Google Speech Recognition"""
         try:
-            return self.recognizer.recognize_google(audio, language=language)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return self.recognizer.recognize_google(audio, language=language)
         except sr.UnknownValueError:
-            return "无法识别语音内容"
+            return "无法识别语音内容，请确保音频清晰且包含语音"
         except sr.RequestError as e:
             return f"Google语音识别服务错误: {str(e)}"
+        except Exception as e:
+            return f"语音识别过程中发生错误: {str(e)}"
     
     def _recognize_azure(self, audio, language: str) -> str:
         """使用Azure Speech Services"""
         try:
             # 这里需要Azure Speech SDK
-            # 由于依赖复杂，这里返回示例
-            return "Azure语音识别功能需要配置Azure Speech Services"
+            # 由于依赖复杂，这里返回提示信息
+            return "Azure语音识别功能需要配置Azure Speech Services。目前使用Google服务。"
         except Exception as e:
             return f"Azure语音识别错误: {str(e)}"
     
@@ -111,8 +123,8 @@ class SpeechRecognitionService:
         """使用百度语音识别"""
         try:
             # 这里需要百度语音识别API
-            # 由于依赖复杂，这里返回示例
-            return "百度语音识别功能需要配置百度语音API"
+            # 由于依赖复杂，这里返回提示信息
+            return "百度语音识别功能需要配置百度语音API。目前使用Google服务。"
         except Exception as e:
             return f"百度语音识别错误: {str(e)}"
     
@@ -120,8 +132,8 @@ class SpeechRecognitionService:
         """使用腾讯语音识别"""
         try:
             # 这里需要腾讯语音识别API
-            # 由于依赖复杂，这里返回示例
-            return "腾讯语音识别功能需要配置腾讯语音API"
+            # 由于依赖复杂，这里返回提示信息
+            return "腾讯语音识别功能需要配置腾讯语音API。目前使用Google服务。"
         except Exception as e:
             return f"腾讯语音识别错误: {str(e)}"
     
@@ -139,16 +151,48 @@ class SpeechRecognitionService:
             "es-ES": "西班牙语",
             "ru-RU": "俄语"
         }
+    
+    def get_service_info(self) -> dict:
+        """获取服务信息"""
+        return {
+            "google": {
+                "name": "Google Speech Recognition",
+                "free": True,
+                "requires_key": False,
+                "languages": "多语言支持",
+                "accuracy": "中等"
+            },
+            "azure": {
+                "name": "Azure Speech Services",
+                "free": False,
+                "requires_key": True,
+                "languages": "多语言支持",
+                "accuracy": "高"
+            },
+            "baidu": {
+                "name": "百度语音识别",
+                "free": False,
+                "requires_key": True,
+                "languages": "主要支持中文",
+                "accuracy": "中文识别效果好"
+            },
+            "tencent": {
+                "name": "腾讯语音识别",
+                "free": False,
+                "requires_key": True,
+                "languages": "主要支持中文",
+                "accuracy": "中文识别效果好"
+            }
+        }
 
-def create_speech_recognition_service(api_key: str = None, service_type: str = "google") -> SpeechRecognitionService:
+def create_streamlit_speech_service(service_type: str = "google") -> StreamlitSpeechService:
     """
-    创建语音识别服务实例
+    创建 Streamlit 语音识别服务实例
     
     Args:
-        api_key: API密钥
         service_type: 服务类型
         
     Returns:
         语音识别服务实例
     """
-    return SpeechRecognitionService(api_key, service_type) 
+    return StreamlitSpeechService(service_type) 
