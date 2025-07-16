@@ -5,6 +5,13 @@ from typing import Dict, Any
 import json
 from datetime import datetime
 import os
+import speech_recognition as sr
+import tempfile
+import wave
+import pyaudio
+import threading
+import time
+from voice_input_component import voice_input_section
 
 # 页面配置
 st.set_page_config(
@@ -78,10 +85,31 @@ class RheumatologyPrompts:
         你是一位经验丰富的风湿免疫科专家，专门负责生成风湿免疫科电子病历。
         
         风湿免疫科重点关注：
-        1. 关节症状：疼痛、肿胀、晨僵、活动受限
-        2. 系统性症状：发热、疲劳、体重下降、皮疹
-        3. 器官受累：肺、心、肾、神经系统
-        4. 实验室检查：自身抗体、炎症指标、影像学
+        1. 关节症状：疼痛、肿胀、晨僵、活动受限、关节畸形
+        2. 系统性症状：发热、疲劳、体重下降、皮疹、光敏感
+        3. 器官受累：肺间质病变、心包炎、肾炎、神经系统病变
+        4. 实验室检查：自身抗体（ANA、RF、抗CCP等）、炎症指标（ESR、CRP）、影像学检查
+        
+        常见风湿免疫疾病：
+        - 类风湿关节炎：对称性多关节炎，晨僵>1小时，RF/抗CCP阳性
+        - 系统性红斑狼疮：多系统受累，ANA阳性，光敏感，蝶形红斑
+        - 干燥综合征：口干、眼干，抗SSA/SSB阳性
+        - 强直性脊柱炎：腰背痛，HLA-B27阳性，骶髂关节炎
+        - 系统性硬化症：皮肤硬化，雷诺现象，抗Scl-70阳性
+        - 血管炎：多系统血管炎，ANCA阳性
+        
+        诊断要求：
+        1. 基于症状、体征和实验室检查综合分析
+        2. 考虑疾病活动度和严重程度
+        3. 评估器官受累情况
+        4. 排除其他可能的诊断
+        
+        治疗原则：
+        1. 个体化治疗：根据疾病活动度、严重程度和器官受累情况
+        2. 早期干预：防止关节破坏和器官损害
+        3. 达标治疗：定期评估治疗效果，调整治疗方案
+        4. 多学科协作：必要时请相关科室会诊
+        5. 患者教育：提高治疗依从性，改善预后
         
         请严格按照风湿免疫科病历格式生成，包括：
         - 主诉（关节症状、系统性症状）
@@ -89,22 +117,27 @@ class RheumatologyPrompts:
         - 既往史（其他风湿病、用药史）
         - 体格检查（关节检查、皮肤黏膜、心肺等）
         - 辅助检查（实验室、影像学）
-        - 诊断（初步诊断、鉴别诊断）
-        - 治疗方案
+        - 诊断（详细分析诊断方向、鉴别诊断、严重程度评估）
+        - 治疗方案（药物治疗、非药物治疗、监测方案、随访计划）
         """
     
     def get_analysis_prompt(self, dialogue):
         return f"""
-        请分析以下风湿免疫科问诊记录，提取关键信息：
+        请详细分析以下风湿免疫科问诊记录，提取关键信息：
         
         问诊记录：{dialogue}
         
         请识别：
-        1. 主要症状和体征
-        2. 症状持续时间和发展过程
-        3. 既往相关病史
-        4. 用药情况
-        5. 可能的诊断方向
+        1. 主要症状和体征（关节症状、系统性症状、器官受累表现）
+        2. 症状持续时间和发展过程（急性/慢性、进展性/缓解性）
+        3. 既往相关病史（风湿病家族史、自身免疫病史、用药史）
+        4. 用药情况（既往用药、药物反应、依从性）
+        5. 可能的诊断方向（基于症状和体征的初步判断）
+        6. 疾病活动度评估（轻度/中度/重度）
+        7. 器官受累情况（关节、皮肤、肺、心、肾、神经系统等）
+        8. 需要进一步检查的项目（实验室检查、影像学检查）
+        9. 治疗难点和风险因素
+        10. 预后影响因素
         """
     
     def get_record_generation_prompt(self, analysis_result):
@@ -131,13 +164,92 @@ class RheumatologyPrompts:
         [根据对话内容建议实验室检查、影像学检查等。如未提到则输出"无"]
         
         诊断：
-        [根据对话内容给出初步诊断、鉴别诊断。如未提到则输出"无"]
+        [请详细分析可能的诊断方向，包括：
+        1. 初步诊断：基于症状和体征给出最可能的诊断
+        2. 鉴别诊断：列出需要排除的其他风湿免疫疾病
+        3. 诊断依据：说明支持诊断的关键症状、体征和检查结果
+        4. 疾病严重程度评估：轻度/中度/重度
+        5. 并发症风险评估：可能出现的并发症
+        如未提到则输出"无"]
         
         治疗方案：
-        [根据对话内容制定治疗方案。如未提到则输出"无"]
+        [请制定详细的治疗方案，包括：
+        1. 药物治疗：具体药物名称、剂量、用法、疗程
+        2. 非药物治疗：物理治疗、康复训练、生活方式调整
+        3. 监测方案：需要定期监测的指标和频率
+        4. 随访计划：复诊时间和注意事项
+        5. 患者教育：饮食、运动、用药注意事项
+        6. 预后评估：预期治疗效果和长期预后
+        如未提到则输出"无"]
         
-        注意：请严格按照上述格式输出，不要添加其他内容，不要输出分析结果，只输出结构化的电子病历。
+        注意：请严格按照上述格式输出，不要添加其他内容，不要输出分析结果，只输出结构化的电子病历。诊断和治疗方案部分请尽可能详细和具体。
         """
+
+class VoiceRecorder:
+    def __init__(self):
+        self.recording = False
+        self.frames = []
+        self.audio = pyaudio.PyAudio()
+        self.stream = None
+        
+    def start_recording(self):
+        """开始录音"""
+        self.recording = True
+        self.frames = []
+        
+        def callback(in_data, frame_count, time_info, status):
+            if self.recording:
+                self.frames.append(in_data)
+            return (in_data, pyaudio.paContinue)
+        
+        self.stream = self.audio.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=44100,
+            input=True,
+            frames_per_buffer=1024,
+            stream_callback=callback
+        )
+        self.stream.start_stream()
+        
+    def stop_recording(self):
+        """停止录音"""
+        self.recording = False
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+        
+    def save_audio(self, filename):
+        """保存录音文件"""
+        with wave.open(filename, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(44100)
+            wf.writeframes(b''.join(self.frames))
+    
+    def cleanup(self):
+        """清理资源"""
+        if self.stream:
+            self.stream.close()
+        self.audio.terminate()
+
+class SpeechToText:
+    def __init__(self):
+        self.recognizer = sr.Recognizer()
+        
+    def transcribe_audio(self, audio_file_path):
+        """将音频文件转换为文字"""
+        try:
+            with sr.AudioFile(audio_file_path) as source:
+                audio = self.recognizer.record(source)
+                text = self.recognizer.recognize_google(audio, language='zh-CN')
+                return text
+        except sr.UnknownValueError:
+            return "无法识别语音内容"
+        except sr.RequestError as e:
+            return f"语音识别服务错误: {str(e)}"
+        except Exception as e:
+            return f"语音转换错误: {str(e)}"
 
 class RheumatologyEHRSystem:
     def __init__(self, api_key: str, base_url: str):
@@ -292,9 +404,11 @@ def main():
         # 示例问诊记录
         st.header("📋 示例问诊记录")
         example_records = {
-            "类风湿关节炎": "患者女性，45岁，主诉双手小关节疼痛、肿胀3个月，晨僵明显，持续时间约2小时，伴有乏力、食欲不振。既往无特殊病史。",
-            "系统性红斑狼疮": "患者女性，28岁，主诉面部皮疹2个月，伴有光敏感、关节疼痛、脱发，近期出现发热、乏力。",
-            "干燥综合征": "患者女性，52岁，主诉口干、眼干1年，伴有吞咽困难、关节疼痛，既往有甲状腺功能减退病史。"
+            "类风湿关节炎": "患者女性，45岁，主诉双手小关节疼痛、肿胀3个月，晨僵明显，持续时间约2小时，伴有乏力、食欲不振。疼痛呈对称性，以近端指间关节和掌指关节为主，活动后疼痛加重。既往无特殊病史，否认家族风湿病史。",
+            "系统性红斑狼疮": "患者女性，28岁，主诉面部蝶形红斑2个月，伴有光敏感、关节疼痛、脱发，近期出现发热、乏力、口腔溃疡。关节疼痛以手指、腕关节为主，呈游走性。既往无特殊病史。",
+            "干燥综合征": "患者女性，52岁，主诉口干、眼干1年，伴有吞咽困难、关节疼痛，既往有甲状腺功能减退病史。口干严重，需要频繁饮水，眼干伴有异物感。关节疼痛以手指关节为主。",
+            "强直性脊柱炎": "患者男性，25岁，主诉腰背痛2年，晨僵明显，活动后症状改善。疼痛以夜间和晨起为重，逐渐向上发展。既往无特殊病史，父亲有类似症状。",
+            "系统性硬化症": "患者女性，38岁，主诉手指雷诺现象3年，皮肤硬化1年。手指遇冷变白、变紫，伴有皮肤紧绷感，逐渐累及面部和躯干。既往无特殊病史。"
         }
         
         selected_example = st.selectbox("选择示例:", list(example_records.keys()))
@@ -303,6 +417,29 @@ def main():
     
     # 主界面
     st.markdown('<h2 class="section-header">📝 问诊记录输入</h2>', unsafe_allow_html=True)
+    
+    # 语音输入功能
+    voice_input_section()
+    
+    # 显示转换后的文字
+    if hasattr(st.session_state, 'transcribed_text'):
+        st.markdown("### 转换结果：")
+        st.text_area("语音转换文字：", value=st.session_state.transcribed_text, height=100, key="transcribed_text_area")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ 使用此文字", key="use_transcribed_text"):
+                st.session_state.example_text = st.session_state.transcribed_text
+                st.success("已使用转换的文字！")
+        with col2:
+            if st.button("🔄 重新转换", key="retry_transcription"):
+                del st.session_state.transcribed_text
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # 文本输入区域
+    st.markdown('<h3 class="section-header">✍️ 文本输入</h3>', unsafe_allow_html=True)
     
     # 获取示例文本（如果存在）
     default_text = getattr(st.session_state, 'example_text', '')
