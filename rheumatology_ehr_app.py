@@ -275,37 +275,63 @@ class RheumatologyEHRSystem:
         current_section = None
         current_content = []
         
-        for line in lines:
-            line = line.strip()
+        # 定义章节标题映射
+        section_mapping = {
+            "主诉": "chief_complaint",
+            "主诉：": "chief_complaint",
+            "现病史": "present_illness", 
+            "现病史：": "present_illness",
+            "既往史": "past_history",
+            "既往史：": "past_history",
+            "体格检查": "physical_examination",
+            "体格检查：": "physical_examination",
+            "辅助检查": "auxiliary_examination",
+            "辅助检查：": "auxiliary_examination",
+            "诊断": "diagnosis",
+            "诊断：": "diagnosis",
+            "治疗方案": "treatment_plan",
+            "治疗方案：": "treatment_plan"
+        }
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            # 跳过空行
             if not line:
+                i += 1
                 continue
             
-            # 检查是否是新的章节标题（支持多种格式）
-            if any(line.startswith(prefix) for prefix in ["主诉：", "主诉", "现病史：", "现病史", "既往史：", "既往史", "体格检查：", "体格检查", "辅助检查：", "辅助检查", "诊断：", "诊断", "治疗方案：", "治疗方案"]):
+            # 检查是否是新的章节标题
+            found_section = None
+            for prefix, section_key in section_mapping.items():
+                if line.startswith(prefix):
+                    found_section = section_key
+                    break
+            
+            if found_section:
                 # 保存之前章节的内容
                 if current_section and current_content:
                     sections[current_section] = '\n'.join(current_content).strip()
                     current_content = []
                 
                 # 设置新的章节
-                if line.startswith("主诉") or line.startswith("主诉："):
-                    current_section = "chief_complaint"
-                elif line.startswith("现病史") or line.startswith("现病史："):
-                    current_section = "present_illness"
-                elif line.startswith("既往史") or line.startswith("既往史："):
-                    current_section = "past_history"
-                elif line.startswith("体格检查") or line.startswith("体格检查："):
-                    current_section = "physical_examination"
-                elif line.startswith("辅助检查") or line.startswith("辅助检查："):
-                    current_section = "auxiliary_examination"
-                elif line.startswith("诊断") or line.startswith("诊断："):
-                    current_section = "diagnosis"
-                elif line.startswith("治疗方案") or line.startswith("治疗方案："):
-                    current_section = "treatment_plan"
+                current_section = found_section
+                
+                # 跳过章节标题行和可能的空行
+                i += 1
+                while i < len(lines) and not lines[i].strip():
+                    i += 1
+                continue
             
             # 如果不是章节标题，且当前有活跃章节，则添加内容
-            elif current_section and line and not line.startswith("[") and not line.startswith("请") and not line.startswith("注意") and not line.startswith("基于"):
-                current_content.append(line)
+            elif current_section and line:
+                # 过滤掉一些不需要的内容
+                skip_prefixes = ["[", "请", "注意", "基于", "请严格按照", "注意：", "电子病历生成"]
+                if not any(line.startswith(prefix) for prefix in skip_prefixes):
+                    current_content.append(line)
+            
+            i += 1
         
         # 保存最后一个章节的内容
         if current_section and current_content:
@@ -568,7 +594,7 @@ def display_medical_record(record_data):
     
     # 可展开的详细信息
     with st.expander("🔍 查看详细信息"):
-        tab1, tab2, tab3 = st.tabs(["📊 结构化数据", "🔍 分析结果", "📝 原始响应"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 结构化数据", "🔍 分析结果", "📝 原始响应", "🐛 调试信息"])
         
         with tab1:
             st.json(record)
@@ -578,6 +604,12 @@ def display_medical_record(record_data):
         
         with tab3:
             st.text(record_data.get("raw_response", "无原始响应"))
+        
+        with tab4:
+            st.write("### LLM返回的原始文本:")
+            st.text(record_data.get("raw_response", "无原始响应"))
+            st.write("### 解析后的结构化数据:")
+            st.json(record)
 
 if __name__ == "__main__":
     main() 
