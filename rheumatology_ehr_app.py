@@ -425,6 +425,10 @@ def main():
         placeholder="例如：患者主诉关节疼痛3个月，晨僵明显，伴有皮疹...（请输入完整的问诊对话记录）"
     )
     
+    # 初始化session state
+    if 'medical_record_result' not in st.session_state:
+        st.session_state.medical_record_result = None
+    
     # 生成按钮
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -441,14 +445,14 @@ def main():
                         result = asyncio.run(ehr_system.generate_medical_record(consultation_text))
                         # 保存结果到session state
                         st.session_state.medical_record_result = result
-                        st.rerun()
+                        st.success("✅ 电子病历生成完成！")
                     except Exception as e:
                         st.error(f"生成失败: {str(e)}")
             else:
                 st.error("请输入问诊记录")
     
     # 显示生成的病历结果
-    if hasattr(st.session_state, 'medical_record_result'):
+    if st.session_state.medical_record_result:
         display_medical_record(st.session_state.medical_record_result)
 
 def display_medical_record(record_data):
