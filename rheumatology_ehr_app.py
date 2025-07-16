@@ -12,6 +12,8 @@ import threading
 import time
 from voice_input_component import voice_input_section
 from enhanced_voice_input import enhanced_voice_input_section
+from simple_voice_input import simple_voice_input_section
+from auto_voice_input import auto_voice_input_section
 
 # 页面配置
 st.set_page_config(
@@ -379,12 +381,16 @@ def main():
     # 选择语音输入模式
     input_mode = st.radio(
         "选择语音输入模式：",
-        ["基础模式", "增强模式（推荐）"],
-        help="增强模式支持自动转换和更多音频格式"
+        ["基础模式", "简化模式（推荐）", "自动模式", "增强模式"],
+        help="简化模式最稳定，自动模式最便捷，增强模式功能最全"
     )
     
     if input_mode == "基础模式":
         voice_input_section()
+    elif input_mode == "简化模式（推荐）":
+        simple_voice_input_section()
+    elif input_mode == "自动模式":
+        auto_voice_input_section()
     else:
         enhanced_voice_input_section()
     
