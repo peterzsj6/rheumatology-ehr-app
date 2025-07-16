@@ -439,11 +439,17 @@ def main():
                         # 创建EHR系统实例
                         ehr_system = RheumatologyEHRSystem(api_key, base_url)
                         result = asyncio.run(ehr_system.generate_medical_record(consultation_text))
-                        display_medical_record(result)
+                        # 保存结果到session state
+                        st.session_state.medical_record_result = result
+                        st.rerun()
                     except Exception as e:
                         st.error(f"生成失败: {str(e)}")
             else:
                 st.error("请输入问诊记录")
+    
+    # 显示生成的病历结果
+    if hasattr(st.session_state, 'medical_record_result'):
+        display_medical_record(st.session_state.medical_record_result)
 
 def display_medical_record(record_data):
     if not record_data.get("success"):
@@ -536,10 +542,13 @@ def display_medical_record(record_data):
         # 创建Word导出处理器
         word_handler = create_word_export_handler()
         
-        # 直接显示下载按钮，避免页面重新加载
-        success, message = word_handler.handle_word_export(record)
-        if not success:
-            st.error(message)
+        # 使用按钮触发Word导出
+        if st.button("📄 导出Word", use_container_width=True):
+            success, message = word_handler.handle_word_export(record)
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
     
     with col2:
         if st.button("📋 复制到剪贴板", use_container_width=True):
